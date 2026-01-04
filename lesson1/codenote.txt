@@ -1,0 +1,40 @@
+代码笔记
+对于一些库函数，可以将他们编译成目标文件，然后供主程序使用
+比如这里的third/math下的add.cpp
+可以先g++ -c add.cpp 直接编译成add.o
+
+然后对于main.cpp 可以直接编译+链接使用目标文件add.o,也可以先编译出来main.o，再做链接
+这里注意，无论是编译+链接，还是先编译，因为main.cpp用到了add.h，而add.h又不在当前目录，所以要在g++的参数里面指定.h头文件的路径，这里的路径是相对编译时的路径而言的
+比如
+在代码里面是include "third/math/add.h"
+如果在src里面编译的话，需要g++ -I.. (..就是返回上层目录)，如果在lesson1下编译的话就是 -I.
+当然在哪里编译的，.o目标文件就会在哪里
+
+编译成两个目标文件之后，可以直接g++ main.o third/math/add.o 链接成可执行文件
+
+但.o文件可能很多，这时候就要将.o文件打包成链接库了，链接库分静态链接库和动态链接库
+静态链接库好理解，实际就是将.o文件打包起来
+ar rcs libadd.a add.o
+在使用的时候，指定链接库目录
+g++ main.o -L../third/math -ladd
+如果没有编译main.o， 那就是g++ main.cpp -I.. -L../third/math -ladd (就是把编译和链接放到一步了)
+
+动态链接库就不太好理解了
+动态链接库是为了如果库代码有变更的话，只编译库代码即可
+首先在编译的时候，需要添加参数-fPIC, 代表位置无关 Position Independent Code 
+g++ -c -fPIC add.cpp
+
+然后创建动态链接库
+g++ -shared -o libadd.so add.o
+
+链接主程序的时候还是跟之前一样
+g++ main.o -L../third/math -ladd
+
+但这时候生成的可执行文件是不能执行的，因为需要将动态链接库的路径设置成环境变量
+export LD_LIBRARY_PATH=third/math:$LD_LIBRARY_PATH
+也可以在链接的时候加上路径参数
+g++ src/main.cpp -Ithird/math -Lthird/math -ladd -Wl,-rpath,third/math -o myapp
+这里通过-Wl,-rpath指定了动态库的路径third/math
+注意这里的路径查找是在运行可执行文件的目录下开始查找，如果把可执行文件放到另一个地方就可能找不到了
+
+我觉得动态链接库还是太麻烦了
