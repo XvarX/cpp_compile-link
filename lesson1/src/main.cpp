@@ -1,11 +1,18 @@
 #include <iostream>
-#include "third/math/add.h"
+#include "lesson1/mymath/myadd.h"
+#include "math/add.h"
+
 using namespace std;
 
 int main() {
     cout << "hello world" << endl;
     
-    Add oAdd(1, 2);
+    MyAdd oAdd(1, 2);
     cout << "1 + 2 = " << oAdd.getresult() << endl;
+
+    Add oAdd2(1, 2);
+    cout << "1 + 2 + 3 = " << oAdd2.getresult() << endl;
+
+    
     return 0;
 }
