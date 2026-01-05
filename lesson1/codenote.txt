@@ -38,3 +38,79 @@ g++ src/main.cpp -Ithird/math -Lthird/math -ladd -Wl,-rpath,third/math -o myapp
 注意这里的路径查找是在运行可执行文件的目录下开始查找，如果把可执行文件放到另一个地方就可能找不到了
 
 我觉得动态链接库还是太麻烦了
+==============================================================================================
+
+今天学习了两个内容 c++工业级的代码结构是
+├── CMakeLists.txt
+├── include
+│   └── lesson1
+│       └── mymath
+│           └── myadd.h
+├── libs
+│   └── math
+│       ├── CMakeLists.txt
+│       ├── include
+│       │   └── math
+│       │       └── add.h
+│       └── src
+│           └── add.cpp
+└── src
+    ├── main.cpp
+    └── mymath
+        └── myadd.cpp
+
+会长这样，首先自己项目的源代码在工程目录下的src目录，头文件在include目录，include目录后面需要直接跟项目目录
+这样是为了和其他第三方头文件分开，比如你有一个头文件math.h,第三方也有一个头文件math.h。不加以区分就会打架了
+
+第三方库源码会放在libs里面，libs里面每个库一个单独的目录，目录里面有自己的src和include，同样的include后要紧跟一个库目录
+
+在使用的时候，使用第三方库比如上图的libs/math/add.h时，不管是第三方库的源文件，还是项目自己的源文件
+都是按#include"math/add.h"来用，这个后面会通过cmake的配置，让他可以被编译器找到
+
+而使用本项目的头文件则是#include"lesson1/mymath/myadd.h"
+
+这两者实际是想通的，都是#include"项目名or库名/头文件名"
+
+cmake的用法，cmake实际就是帮我们写makefile，makefile太难写了，就有cmake。
+对于上面的结构，需要第三方库生成静态链接，项目自己的库也生成静态链接
+每一个库/项目一个CMake文件
+
+第三方库会像这样
+add_library(libmath STATIC
+    src/add.cpp
+)
+
+target_include_directories(libmath PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_library就是指定生成静态链接库，target_include_directories则是表示头文件路径，这里除了给第三方库指明路径外，还会给项目指明，看项目的cmake
+
+cmake_minimum_required(VERSION 3.10)
+
+project(lesson1)
+
+add_subdirectory(libs/math)
+
+add_library(mymath STATIC
+    src/mymath/myadd.cpp
+)
+
+target_include_directories(mymath PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_executable(main
+    src/main.cpp
+)
+
+target_link_libraries(main PUBLIC
+    mymath
+)
+target_link_libraries(main PUBLIC
+    libmath
+)
+
+跳过前面两行，第三行add_subdirectory(libs/math)则会去找到对应的库的cmake文件了，这时候里面的头文件路径也会给项目指明
+add_executable 是生成可执行文件
+target_link_libraries 是链接操作，mymath libmath是add_library的时候指定的名字
