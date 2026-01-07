@@ -62,6 +62,6 @@ CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 
-# 保留 .gitignore 和 .txt 文件
+# 保留 .gitignore 和 codenote.txt 文件
 !*.gitignore
-!*.txt
+!*codenote.txt
