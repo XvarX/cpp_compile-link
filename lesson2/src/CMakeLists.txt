@@ -6,4 +6,4 @@ add_executable(myapp
 )
 
 find_package(mymath REQUIRED)
-target_link_libraries(myapp PRIVATE mymath)
+target_link_libraries(myapp PRIVATE mymath::arithmetic)
