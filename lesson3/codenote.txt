@@ -1,0 +1,106 @@
+完成了对cmake 安装的学习
+这个要一点一点的理
+
+cmake_minimum_required(VERSION 3.10)
+这里是cmake需求最低的版本号
+
+project(mymath VERSION 1.0.0)
+这个是项目名字和版本号
+
+add_library(arithmetic STATIC
+    src/arithmetic.cpp
+)
+这个是把代码变成静态库 target
+
+target_include_directories(arithmetic PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+这里是指明include在哪
+BUILD_INTERFACE表示在make的时候
+INSTALL_INTERFACE表示在安装的时候
+这里最难搞懂，可以这么理解$<INSTALL_INTERFACE:include> 这个的include实际是"安装路径/include"
+是用来后续其他的cmake在用find_package到这个项目的时候，指明include在哪里
+
+add_library(mymath::arithmetic ALIAS arithmetic)
+这里是别名，工业级的cmake需要给每个target打上别名，以和其他target做区分
+
+install(TARGETS arithmetic
+    EXPORT mymathTargets
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+这里面有两部分，第一部分是EXPORT mymathTargets，实际就是mymathTargets=[arithmetic], 是为了给后面用的
+
+这里是安装，实际就是复制，把库复制到"安装路径/lib", 把可执行文件复制到"安装路径/bin"
+
+install(DIRECTORY include/ DESTINATION include)
+这里也是复制，把当前目录的include文件夹，也复制到"安装路径/include"
+
+install(EXPORT mymathTargets
+    FILE mymathTargets.cmake
+    NAMESPACE mymath::
+    DESTINATION lib/cmake/mymath
+)
+
+这里是为了让后续其他的cmake在用find_package的时候就能直接使用这个库
+这里还是复制，复制mymathTargets.cmake到 "安装路径/lib/cmake/mymath"里面
+mymathTargets.cmake里面是什么呢，是mymathTargets里面的target内容即arithmetic
+NAMESPACE mymath:: 是为了自动给所有target弄个前缀
+
+include(CMakePackageConfigHelpers)
+这个是引入了cmake的标准配置文件，实际是为了引入下面两个函数
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/mymathConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+这是为了生成可以对比版本号弄的cmake文件，让其他cmake find_package的时候能对比版本号
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_LIST_DIR}/cmake/mymathConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/mymathConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/mymath
+)
+这是为了生成让其他cmake find_package时的入口
+注意这里的INSTALL_DESTINATION lib/cmake/mymath 实际是为了让这个cmake生成的时候能知道安装路径在哪
+进而在mymathConfig.cmake里面能像"${CMAKE_CURRENT_LIST_DIR}/../../../"这样往上找几层
+lib/cmake/mymath 就是三层，实际这里你写a/b/c也行，他只是为了找几层而已，不关心实际路径是什么
+
+cmake/mymathConfig.cmake.in
+这个东西要自己生成好，里面大致会是这样的东西
+@PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/mymathTargets.cmake")
+
+@PACKAGE_INIT@
+这个就是cmake的占位符，会自动拉一大堆东西
+include("${CMAKE_CURRENT_LIST_DIR}/mymathTargets.cmake")
+表示项目的cmake
+
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/mymathConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/mymathConfigVersion.cmake"
+    DESTINATION lib/cmake/mymath
+)
+
+最后把这些生成的cmake 复制到 "安装路径/lib/cmake/mymath"
+
+这样在cmake 和 make install后，对应的库，头文件，以及为了让其他项目可以通过find_package找到库的cmake就安装好了
+
+然后让我们来看看怎么用
+
+cmake_minimum_required(VERSION 3.10)
+project(myapp)
+
+add_executable(myapp
+    main.cpp
+)
+
+find_package(mymath REQUIRED)
+target_link_libraries(myapp PRIVATE mymath::arithmetic)
+
+这是另一个项目，会用到arithmetic库，这时候只需要find_package(mymath) 就能完成找到库的工作了
+但最后还是要手动的链接一下
